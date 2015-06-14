@@ -24,18 +24,11 @@ typedef struct{
 	char *data;		// application data
 }Segm, *PSegm;
 
-// #define HEAD_LEN(x) (((x).head_len & 0xf0) >> 4) // get segment header length
-// #define URG(x) ((x).ctrl_bits & 32)	// get segment control bit - URG
-// #define ACK(x) ((x).ctrl_bits & 16)	// get segment control bit - ACK
-// #define PSH(x) ((x).ctrl_bits &  8)	// get segment control bit - PSH
-// #define RST(x) ((x).ctrl_bits &  4)	// get segment control bit - RST
-// #define SYN(x) ((x).ctrl_bits &  2)	// get segment control bit - SYN
-// #define FIN(x) ((x).ctrl_bits &  1)	// get segment control bit - FIN
-// void header_len(PSegm, short);		// set segment header length
-// void set_ctrl_bits(PSegm, short);	// set segment control bits
-
 /* functions for server */
 int mylisten(short);			// listen on port
 
+
+/* functions for client */
+int myconnect()
 
 #endif
