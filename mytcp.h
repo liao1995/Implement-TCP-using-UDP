@@ -2,9 +2,21 @@
 #define MYTCP_H_
 
 typedef int BOOL;
-#define TRUE  1
-#define FALSE 0
+#define TRUE     1
+#define FALSE    0
+#define SRV_PORT 10220
+#define CLI_PORT 10219
+#define HED_LEN  32
+#define PKG_LEN  544
+#define BUF_SIZE 10240
 
+/* global variable */
+int glb_rtt_delay;		// RTT delay. Unit: millisecond
+int glb_threshold;		// Threshold. Unit: byte
+int glb_mss;			// MSS. Unit byte
+
+
+/* tcp segment structure */
 typedef struct{
 	short src_port;		// 16-bit source port
 	short dest_port;	// 16-bit destination port
@@ -21,6 +33,7 @@ typedef struct{
 	short rcv_win;		// 16-bit receive window
 	short checksum;		// 16-bit checksum
 	short urg_ptr;		// 16-bit urgent pointer
+	int   padding;
 	char *data;		// application data
 }Segm, *PSegm;
 
@@ -29,6 +42,6 @@ int mylisten(short);			// listen on port
 
 
 /* functions for client */
-int myconnect()
+int myconnect(char *, short);		// connect to server
 
 #endif
