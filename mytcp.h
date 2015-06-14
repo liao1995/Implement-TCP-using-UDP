@@ -1,20 +1,26 @@
 #ifndef MYTCP_H_
 #define MYTCP_H_
 
-typedef int BOOL;
-#define TRUE     1
-#define FALSE    0
+#include <arpa/inet.h>
+
 #define SRV_PORT 10220
 #define CLI_PORT 10219
 #define HED_LEN  32
 #define PKG_LEN  544
 #define BUF_SIZE 10240
 
+typedef int boolean;
+
+#define TRUE  1
+#define FALSE 0
+
 /* global variable */
 int glb_rtt_delay;		// RTT delay. Unit: millisecond
 int glb_threshold;		// Threshold. Unit: byte
 int glb_mss;			// MSS. Unit byte
 
+struct sockaddr_in glb_srv;	// server socket address
+struct sockaddr_in glb_cli;	// client socket address
 
 /* tcp segment structure */
 typedef struct{
@@ -37,11 +43,11 @@ typedef struct{
 	char *data;		// application data
 }Segm, *PSegm;
 
-/* functions for server */
-int mylisten(short);			// listen on port
+int myclose(int, struct sockaddr_in, short, short);	// active terminate a tcp connection
 
+/* functions for server */
+int mylisten(short);		// listen on port
 
 /* functions for client */
-int myconnect(char *, short);		// connect to server
-
+int myconnect(char *, short);	// connect to server
 #endif

@@ -5,16 +5,17 @@
  */
 
 #include "mytcp.h"
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 
 extern int glb_rtt_delay;
 extern int glb_threshold;
 extern int glb_mss;
+extern struct sockaddr_in glb_srv;
+extern struct sockaddr_in glb_cli;
 
 inline PSegm _get_segm(char *pkg, char *header)
 {
@@ -107,6 +108,8 @@ int mylisten(short port)
   if (pseg->ack && pseg->ack_seq == seg.seq + 1){
     printf("Complete three way handshake\n");
     printf("==========\n");
+    glb_srv = srv;
+    glb_cli = cli;
     return fd;
   }
   else{
@@ -190,7 +193,77 @@ int myconnect(char *srv_ip, short srv_port)
     fprintf(stderr, "not a wanted SYN/ACK! \n");
     return -1;
   }
+  glb_srv = srv;
+  glb_cli = cli;
   printf("Complete three way handshake\n");
   printf("==========\n");
   return fd;
 }
+
+boolean _is_fin_(int fd, struct sockaddr_in des, char pkg[PKG_LEN])
+{
+    
+  PSegm pseg;
+  Segm  seg;
+  char header[HED_LEN];
+  pseg = _get_segm(pkg, header);
+  
+  if (!pseg->fin) return FALSE;
+  printf("Received a FIN packet from %s : %hu\n", inet_ntoa(des.sin_addr), pseg->src_port);
+  printf("\t Get a packet (seq = %hu , ack = %hu)\n", pseg->seq, pseg->ack_seq);
+  
+  /* send back a ack to fin */
+  seg.src_port = pseg->dest_port;
+  seg.dest_port = pseg->src_port;
+  seg.seq = pseg->ack_seq;
+  seg.ack_seq = pseg->seq + 1;
+  seg.ack = 1;
+  
+  _mk_pkg(pkg, seg);
+  
+  if (sendto(fd, pkg, PKG_LEN, 0, (struct sockaddr*)&des, sizeof(des))<0) return -1;
+  printf("Send an ACK packet to %s : %hu\n", inet_ntoa(des.sin_addr), seg.dest_port); 
+  return TRUE;
+}
+
+/**
+ * active terminate a tcp connection
+ * @param fd socket file descriptor
+ * @return On success, return 0
+ *         On error, return -1
+ */
+int myclose(int fd, struct sockaddr_in des, short seq, short ack_seq)
+{
+  char pkg[PKG_LEN], header[HED_LEN];
+  struct sockaddr_in src;
+  int src_len = sizeof(src);
+  PSegm pseg;
+  Segm seg;
+  short dest_port = ntohs(des.sin_port);
+  short src_port = (dest_port == SRV_PORT ? CLI_PORT : SRV_PORT);
+  
+  /* send FIN */
+  memset(&seg, 0, sizeof(seg));
+  seg.src_port = src_port;
+  seg.dest_port = dest_port;
+  seg.seq = seq;
+  seg.ack_seq = ack_seq;
+  seg.fin = 1;
+  
+  _mk_pkg(pkg, seg);
+  
+  if (sendto(fd, pkg, PKG_LEN, 0, (struct sockaddr*)&des, sizeof(des))<0) return -1;
+  printf("Send a FIN packet to %s : %hu\n", inet_ntoa(des.sin_addr), dest_port);
+  
+   // wait for ack
+  recvfrom(fd, pkg, PKG_LEN, 0, (struct sockaddr*)&src, &src_len);
+  
+  pseg = _get_segm(pkg, header);
+  
+  if (pseg->ack && pseg->ack_seq == seg.seq + 1)
+  {
+     printf("Received a ACK packet from %s : %hd\n", inet_ntoa(src.sin_addr), pseg->src_port);
+     printf("\t Get a packet (seq = %hu, ack = %hu)\n", pseg->seq, pseg->ack_seq);
+  }
+}
+
