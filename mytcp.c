@@ -16,6 +16,11 @@ extern int glb_threshold;
 extern int glb_mss;
 extern struct sockaddr_in glb_srv;
 extern struct sockaddr_in glb_cli;
+extern char pkg[PKG_LEN];
+extern char header[HED_LEN];
+extern Segm seg;
+extern PSegm pseg;
+extern enum role myrole;
 
 inline PSegm _get_segm(char *pkg, char *header)
 {
@@ -39,9 +44,6 @@ int mylisten(short port)
   int fd;
   struct sockaddr_in srv;
   struct sockaddr_in cli;
-  char pkg[PKG_LEN], header[HED_LEN];
-  PSegm pseg;
-  Segm seg;
   int cli_len = sizeof(cli);
   srand(time(NULL));
   
@@ -110,6 +112,7 @@ int mylisten(short port)
     printf("==========\n");
     glb_srv = srv;
     glb_cli = cli;
+    myrole = server;
     return fd;
   }
   else{
@@ -130,10 +133,7 @@ int myconnect(char *srv_ip, short srv_port)
   int fd;
   struct sockaddr_in cli;
   struct sockaddr_in srv;
-  char pkg[PKG_LEN], header[HED_LEN];
   int srv_len = sizeof(srv);
-  PSegm pseg;
-  Segm seg;
   srand(time(NULL));
   
   /* create server address structure */
@@ -197,15 +197,15 @@ int myconnect(char *srv_ip, short srv_port)
   glb_cli = cli;
   printf("Complete three way handshake\n");
   printf("==========\n");
+  myrole = client;
   return fd;
 }
 
-boolean _is_fin_(int fd, struct sockaddr_in des, char pkg[PKG_LEN])
+boolean isfin(int fd)
 {
-    
-  PSegm pseg;
-  Segm  seg;
-  char header[HED_LEN];
+  struct sockaddr_in des;
+  des = (myrole == server ? glb_cli : glb_srv);
+  
   pseg = _get_segm(pkg, header);
   
   if (!pseg->fin) return FALSE;
@@ -213,6 +213,7 @@ boolean _is_fin_(int fd, struct sockaddr_in des, char pkg[PKG_LEN])
   printf("\t Get a packet (seq = %hu , ack = %hu)\n", pseg->seq, pseg->ack_seq);
   
   /* send back a ack to fin */
+  memset(&seg, 0, sizeof(seg));
   seg.src_port = pseg->dest_port;
   seg.dest_port = pseg->src_port;
   seg.seq = pseg->ack_seq;
@@ -232,13 +233,13 @@ boolean _is_fin_(int fd, struct sockaddr_in des, char pkg[PKG_LEN])
  * @return On success, return 0
  *         On error, return -1
  */
-int myclose(int fd, struct sockaddr_in des, short seq, short ack_seq)
+int myclose(int fd)
 {
-  char pkg[PKG_LEN], header[HED_LEN];
   struct sockaddr_in src;
   int src_len = sizeof(src);
-  PSegm pseg;
-  Segm seg;
+  struct sockaddr_in des;
+  des = (myrole == server ? glb_cli : glb_srv);
+  
   short dest_port = ntohs(des.sin_port);
   short src_port = (dest_port == SRV_PORT ? CLI_PORT : SRV_PORT);
   
@@ -246,8 +247,8 @@ int myclose(int fd, struct sockaddr_in des, short seq, short ack_seq)
   memset(&seg, 0, sizeof(seg));
   seg.src_port = src_port;
   seg.dest_port = dest_port;
-  seg.seq = seq;
-  seg.ack_seq = ack_seq;
+  seg.seq = pseg->ack_seq;
+  seg.ack_seq = pseg->seq + 1;
   seg.fin = 1;
   
   _mk_pkg(pkg, seg);
@@ -265,5 +266,18 @@ int myclose(int fd, struct sockaddr_in des, short seq, short ack_seq)
      printf("Received a ACK packet from %s : %hd\n", inet_ntoa(src.sin_addr), pseg->src_port);
      printf("\t Get a packet (seq = %hu, ack = %hu)\n", pseg->seq, pseg->ack_seq);
   }
+  
+  return 0;
 }
 
+int myreceive(int fd)
+{
+  struct sockaddr_in src = (myrole == server ? glb_cli : glb_srv);
+  int src_len = sizeof(src);
+  
+  recvfrom(fd, pkg, PKG_LEN, 0, (struct sockaddr *)&src, &src_len);
+  
+  pseg = _get_segm(pkg, header);
+
+  return PKG_LEN;
+}

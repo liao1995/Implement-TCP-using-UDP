@@ -11,16 +11,10 @@
 
 typedef int boolean;
 
+enum role{unknown, client, server};
+
 #define TRUE  1
 #define FALSE 0
-
-/* global variable */
-int glb_rtt_delay;		// RTT delay. Unit: millisecond
-int glb_threshold;		// Threshold. Unit: byte
-int glb_mss;			// MSS. Unit byte
-
-struct sockaddr_in glb_srv;	// server socket address
-struct sockaddr_in glb_cli;	// client socket address
 
 /* tcp segment structure */
 typedef struct{
@@ -43,11 +37,30 @@ typedef struct{
 	char *data;		// application data
 }Segm, *PSegm;
 
-int myclose(int, struct sockaddr_in, short, short);	// active terminate a tcp connection
+
+/* global variable */
+int glb_rtt_delay;		// RTT delay. Unit: millisecond
+int glb_threshold;		// Threshold. Unit: byte
+int glb_mss;			// MSS. Unit byte
+
+enum role myrole;		// My Role: Client or Server
+struct sockaddr_in glb_srv;	// server socket address
+struct sockaddr_in glb_cli;	// client socket address
+char pkg[PKG_LEN];		// package
+char header[HED_LEN];		// package header
+Segm seg;			// segment structure variable
+PSegm pseg;			// pointer to a segment
+
+int myclose(int);		// active terminate a tcp connection
+int mysend(int, char *,int);	// send data function
+int myreceive(int);		// receive data function
+boolean isfin(int);
 
 /* functions for server */
 int mylisten(short);		// listen on port
 
 /* functions for client */
 int myconnect(char *, short);	// connect to server
+
+
 #endif
