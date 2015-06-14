@@ -10,6 +10,11 @@ int main(int argc, char *argv[])
     fd = myconnect(argv[1], (short)atoi(argv[2]));
     if (fd<0)
       perror("myconnect");
+    
+    myreceive(fd);
+    if (isfin(fd))
+      myclose(fd);
+    printf("Complete the four way handshake\n");
   }
   else{
     fprintf(stderr, "too few arguments.\n");
